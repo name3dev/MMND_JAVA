@@ -12,6 +12,8 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.Tiers;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -30,7 +32,9 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.neoforged.fml.loading.FMLEnvironment;
 // The value here should match an entry in the META-INF/neoforge.mods.toml file
 @Mod(ExampleMod.MODID)
 public class ExampleMod {
@@ -53,14 +57,30 @@ public class ExampleMod {
     // Creates a new food item with the id "examplemod:example_id", nutrition 1 and saturation 2
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.registerSimpleItem("example_item", new Item.Properties().food(new FoodProperties.Builder()
             .alwaysEdible().nutrition(1).saturationModifier(2f).build()));
-
+    public static final DeferredItem<SwordItem> NETHERITE_SWORD =
+            ITEMS.register("netherite_sword", () ->
+                    new NetheriteSwordItem(
+                            Tiers.NETHERITE,
+                            new Item.Properties().attributes(
+                                    SwordItem.createAttributes(
+                                            Tiers.NETHERITE, 3, -2.4F
+                                    )
+                            )
+                    )
+            );
+    public static final DeferredItem<SpellbookItem> ARCANE_SPELLBOOK =
+            ITEMS.register("arcane_spellbook", () ->
+                    new SpellbookItem(new Item.Properties().stacksTo(1))
+            );
     // Creates a creative tab with the id "examplemod:example_tab" for the example item, that is placed after the combat tab
     public static final DeferredHolder<CreativeModeTab, CreativeModeTab> EXAMPLE_TAB = CREATIVE_MODE_TABS.register("example_tab", () -> CreativeModeTab.builder()
             .title(Component.translatable("itemGroup.examplemod")) //The language key for the title of your CreativeModeTab
             .withTabsBefore(CreativeModeTabs.COMBAT)
-            .icon(() -> EXAMPLE_ITEM.get().getDefaultInstance())
+            .icon(() -> NETHERITE_SWORD.get().getDefaultInstance())
             .displayItems((parameters, output) -> {
                 output.accept(EXAMPLE_ITEM.get());// Add the example item to the tab. For your own tabs, this method is preferred over the event
+                output.accept(NETHERITE_SWORD.get());
+                output.accept(ARCANE_SPELLBOOK.get());
             }).build());
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
@@ -68,7 +88,7 @@ public class ExampleMod {
     public ExampleMod(IEventBus modEventBus, ModContainer modContainer) {
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
-
+        modEventBus.addListener(this::registerPayloads);
         // Register the Deferred Register to the mod event bus so blocks get registered
         BLOCKS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so items get registered
@@ -86,6 +106,34 @@ public class ExampleMod {
 
         // Register our mod's ModConfigSpec so that FML can create and load the config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+    }
+
+
+    private void registerPayloads(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar("1");
+
+        registrar.playToClient(
+                ElectricSpherePayload.TYPE,
+                ElectricSpherePayload.STREAM_CODEC,
+                (payload, context) -> {
+                    if (FMLEnvironment.dist == Dist.CLIENT) {
+                        context.enqueueWork(() ->
+                                ElectricSphereRenderer.spawn(
+                                        payload.x(),
+                                        payload.y(),
+                                        payload.z()
+                                )
+                        );
+                    }
+                }
+        );
+        registrar.playToServer(
+                SpellCastPayload.TYPE,
+                SpellCastPayload.STREAM_CODEC,
+                (payload, context) -> context.enqueueWork(() ->
+                        SpellbookItem.castSpell(context.player(), payload.spellId())
+                )
+        );
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

@@ -2,6 +2,16 @@
 Installation information
 =======
 
+Arcane Spellbook
+===============
+Right-click the Arcane Spellbook to open its spell menu. Choose Arcane Bolt to
+hit the creature you are looking at, Frost Nova to damage and slow nearby
+creatures, Blink to teleport in the direction you are looking, or Healing Light
+to restore health. Spells share a short cooldown.
+
+The Netherite Sword model remains a regular item model and has no custom player
+animations.
+
 This template repository can be directly cloned to get you started with a new
 mod. Simply create a new repository cloned from this one, by following the
 instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
